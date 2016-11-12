@@ -142,14 +142,10 @@ public class DeviationListenerTest {
         // Check whether the deviation module info is set correctly after
         // parsing.
         YangModule yangNode = (YangModule) selfNode;
-        System.out.println("Before : ");
-        System.out.println("Deviation module ");
-        System.out.println("module " + yangNode.getName());
         assertThat(yangNode.getName(), is("deviation-module"));
 
         // Check whether the container is child of module
         YangDeviation deviation = (YangDeviation) yangNode.getChild();
-        System.out.println("    deviation : " + deviation.getName());
         assertThat(deviation.getName(), is("/t:ospf"));
         assertThat(deviation.getDescription(), is("\"desc\""));
         assertThat(deviation.getReference(), is("\"ref\""));
@@ -162,21 +158,13 @@ public class DeviationListenerTest {
         // Check whether the base module - test information is set correctly.
         YangModule yangRefNode = (YangModule) refNode;
         assertThat(yangRefNode.getName(), is("Test"));
-        System.out.println("");
-        System.out.println("Target Module");
-        System.out.println("Module" + yangRefNode.getName());
 
         YangNode ospfNode = yangRefNode.getChild();
         assertThat(ospfNode.getName(), is("ospf"));
-        System.out.println("    container " + ospfNode.getName());
-        System.out.println("        leaf " + ((YangLeavesHolder) ospfNode)
-                .getListOfLeaf().get(0).getName());
 
         YangNode testValid = ospfNode.getNextSibling();
         assertThat(testValid.getName(), is("valid"));
-        System.out.println("    container " + testValid.getName());
-        System.out.println("        leaf " + ((YangLeavesHolder) testValid)
-                .getListOfLeaf().get(0).getName());
+
         assertThat(testValid.getNextSibling(), nullValue());
 
         // Carry out inter-file linking.
@@ -194,21 +182,6 @@ public class DeviationListenerTest {
         // Check whether the node type is set properly to module.
         assertThat(selfNode.getNodeType(), is(MODULE_NODE));
 
-        // Check whether the module name is set correctly.
-        yangNode = (YangModule) selfNode;
-        System.out.println("After : ");
-        assertThat(yangNode.getName(), is("deviation-module"));
-        System.out.println("Deviation module ");
-        System.out.println("module " + yangNode.getName());
-        System.out.println("    deviation " + yangNode.getChild().getName());
-
-        YangNode deviationValid = yangNode.getChild().getNextSibling()
-                .getNextSibling();
-        assertThat(deviationValid.getName(), is("valid"));
-        System.out.println("    container " + deviationValid.getName());
-        List<YangLeaf> lisfOfLeaf = ((YangLeavesHolder) deviationValid).getListOfLeaf();
-        assertThat(lisfOfLeaf.isEmpty(), is(true));
-        assertThat(deviationValid.getNextSibling(), nullValue());
 
         // Check whether the module name is set correctly.
         yangRefNode = (YangModule) refNode;
@@ -229,6 +202,22 @@ public class DeviationListenerTest {
         System.out.println("    container " + testValid.getName());
         System.out.println("        leaf " + ((YangLeavesHolder) testValid)
                 .getListOfLeaf().get(0).getName());
+
+        // Check whether the module name is set correctly.
+        yangNode = (YangModule) selfNode;
+        assertThat(yangNode.getName(), is("deviation-module"));
+        System.out.println("");
+        System.out.println("Deviation module ");
+        System.out.println("module " + yangNode.getName());
+        System.out.println("    deviation " + yangNode.getChild().getName());
+
+        YangNode deviationValid = yangNode.getChild().getNextSibling()
+                .getNextSibling();
+        assertThat(deviationValid.getName(), is("valid"));
+        System.out.println("    container " + deviationValid.getName());
+        List<YangLeaf> lisfOfLeaf = ((YangLeavesHolder) deviationValid).getListOfLeaf();
+        assertThat(lisfOfLeaf.isEmpty(), is(true));
+        assertThat(deviationValid.getNextSibling(), nullValue());
 
         assertThat(testValid.getYangSchemaNodeIdentifier(), is
                 (deviationValid.getYangSchemaNodeIdentifier()));
