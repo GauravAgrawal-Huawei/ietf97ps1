@@ -365,6 +365,17 @@ public abstract class YangLeafList extends DefaultLocationInfo
     }
 
     /**
+     * Returns the cloned leaf-list.
+     *
+     * @return returns cloned leaf-list
+     */
+    public YangLeafList cloneForDeviation()
+            throws CloneNotSupportedException {
+        YangLeafList cll = (YangLeafList) super.clone();
+        return cll;
+    }
+
+    /**
      * Returns the type of the parsed data.
      *
      * @return returns LEAF_LIST_DATA

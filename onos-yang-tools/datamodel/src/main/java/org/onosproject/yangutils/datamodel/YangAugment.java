@@ -347,6 +347,16 @@ public abstract class YangAugment
     }
 
     /**
+     * Removes a leaf.
+     *
+     * @param leaf the leaf to be removed
+     */
+    @Override
+    public void removeLeaf(YangLeaf leaf) {
+        getListOfLeaf().remove(leaf);
+    }
+
+    /**
      * Returns the list of leaf-list.
      *
      * @return the list of leaf-list
@@ -374,6 +384,16 @@ public abstract class YangAugment
     @Override
     public void addLeafList(YangLeafList leafList) {
         getListOfLeafList().add(leafList);
+    }
+
+    /**
+     * Removes a leaf-list.
+     *
+     * @param leafList the leaf-list to be removed
+     */
+    @Override
+    public void removeLeafList(YangLeafList leafList) {
+        getListOfLeafList().remove(leafList);
     }
 
     @Override

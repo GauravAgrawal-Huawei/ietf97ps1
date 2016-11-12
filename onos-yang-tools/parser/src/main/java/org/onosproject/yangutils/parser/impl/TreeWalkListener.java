@@ -45,6 +45,7 @@ import org.onosproject.yangutils.parser.impl.listeners.DataStructureKeyListener;
 import org.onosproject.yangutils.parser.impl.listeners.Decimal64Listener;
 import org.onosproject.yangutils.parser.impl.listeners.DefaultListener;
 import org.onosproject.yangutils.parser.impl.listeners.DescriptionListener;
+import org.onosproject.yangutils.parser.impl.listeners.DeviationListener;
 import org.onosproject.yangutils.parser.impl.listeners.EnumListener;
 import org.onosproject.yangutils.parser.impl.listeners.EnumerationListener;
 import org.onosproject.yangutils.parser.impl.listeners.ErrorAppTagListener;
@@ -1339,14 +1340,12 @@ public class TreeWalkListener implements GeneratedYangListener {
 
     @Override
     public void enterDeviationStatement(GeneratedYangParser.DeviationStatementContext ctx) {
-        increaseUnsupportedYangConstructDepth();
-        handleUnsupportedYangConstruct(YangConstructType.DEVIATION_DATA, ctx, UNSUPPORTED_YANG_CONSTRUCT,
-                getFileName());
+        DeviationListener.processDeviationEntry(this, ctx);
     }
 
     @Override
     public void exitDeviationStatement(GeneratedYangParser.DeviationStatementContext ctx) {
-        decreaseUnsupportedYangConstructDepth();
+        DeviationListener.processDeviationExit(this, ctx);
     }
 
     @Override

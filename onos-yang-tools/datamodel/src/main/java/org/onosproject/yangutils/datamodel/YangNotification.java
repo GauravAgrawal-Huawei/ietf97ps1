@@ -215,6 +215,16 @@ public abstract class YangNotification
         listOfLeaf.add(leaf);
     }
 
+    /**
+     * Removes a leaf.
+     *
+     * @param leaf the leaf to be removed
+     */
+    @Override
+    public void removeLeaf(YangLeaf leaf) {
+        getListOfLeaf().remove(leaf);
+    }
+
     @Override
     public List<YangLeafList> getListOfLeafList() {
         return unmodifiableList(listOfLeafList);
@@ -230,6 +240,16 @@ public abstract class YangNotification
         listOfLeafList.add(leafList);
     }
 
+    /**
+     * Removes a leaf-list.
+     *
+     * @param leafList the leaf-list to be removed
+     */
+    @Override
+    public void removeLeafList(YangLeafList leafList) {
+        getListOfLeafList().remove(leafList);
+    }
+    
     @Override
     public String getReference() {
         return reference;

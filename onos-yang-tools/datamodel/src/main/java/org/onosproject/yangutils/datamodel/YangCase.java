@@ -268,6 +268,16 @@ public abstract class YangCase
     }
 
     /**
+     * Removes a leaf.
+     *
+     * @param leaf the leaf to be removed
+     */
+    @Override
+    public void removeLeaf(YangLeaf leaf) {
+        getListOfLeaf().remove(leaf);
+    }
+
+    /**
      * Returns the list of leaf-list.
      *
      * @return the list of leaf-list
@@ -297,6 +307,16 @@ public abstract class YangCase
         listOfLeafList.add(leafList);
     }
 
+    /**
+     * Removes a leaf-list.
+     *
+     * @param leafList the leaf-list to be removed
+     */
+    @Override
+    public void removeLeafList(YangLeafList leafList) {
+        getListOfLeafList().remove(leafList);
+    }
+    
     /**
      * Returns the textual reference.
      *

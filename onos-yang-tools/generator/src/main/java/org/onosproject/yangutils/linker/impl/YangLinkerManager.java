@@ -188,6 +188,8 @@ public class YangLinkerManager
                         .resolveInterFileLinking(ResolvableType.YANG_LEAFREF);
                 ((YangReferenceResolver) yangNode)
                         .resolveInterFileLinking(ResolvableType.YANG_COMPILER_ANNOTATION);
+                ((YangReferenceResolver) yangNode)
+                        .resolveInterFileLinking(ResolvableType.YANG_DEVIATION);
             } catch (DataModelException e) {
                 String errorInfo = "Error in file: " + yangNode.getName() + " in " +
                         yangNode.getFileName() + " at " +

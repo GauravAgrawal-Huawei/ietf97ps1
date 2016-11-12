@@ -16,6 +16,7 @@
 
 package org.onosproject.yangutils.linker.impl;
 
+import org.onosproject.yangutils.datamodel.CollisionDetector;
 import org.onosproject.yangutils.datamodel.DefaultLocationInfo;
 import org.onosproject.yangutils.datamodel.Resolvable;
 import org.onosproject.yangutils.datamodel.RpcNotificationContainer;
@@ -26,6 +27,8 @@ import org.onosproject.yangutils.datamodel.YangAugmentableNode;
 import org.onosproject.yangutils.datamodel.YangBase;
 import org.onosproject.yangutils.datamodel.YangCompilerAnnotation;
 import org.onosproject.yangutils.datamodel.YangDerivedInfo;
+import org.onosproject.yangutils.datamodel.YangDeviation;
+import org.onosproject.yangutils.datamodel.YangDeviationHolder;
 import org.onosproject.yangutils.datamodel.YangEntityToResolveInfoImpl;
 import org.onosproject.yangutils.datamodel.YangFeature;
 import org.onosproject.yangutils.datamodel.YangFeatureHolder;
@@ -39,12 +42,14 @@ import org.onosproject.yangutils.datamodel.YangInput;
 import org.onosproject.yangutils.datamodel.YangLeaf;
 import org.onosproject.yangutils.datamodel.YangLeafList;
 import org.onosproject.yangutils.datamodel.YangLeafRef;
+import org.onosproject.yangutils.datamodel.YangLeavesHolder;
 import org.onosproject.yangutils.datamodel.YangList;
 import org.onosproject.yangutils.datamodel.YangNode;
 import org.onosproject.yangutils.datamodel.YangNodeIdentifier;
 import org.onosproject.yangutils.datamodel.YangReferenceResolver;
 import org.onosproject.yangutils.datamodel.YangRelativePath;
 import org.onosproject.yangutils.datamodel.YangResolutionInfo;
+import org.onosproject.yangutils.datamodel.YangSchemaNode;
 import org.onosproject.yangutils.datamodel.YangType;
 import org.onosproject.yangutils.datamodel.YangTypeDef;
 import org.onosproject.yangutils.datamodel.YangUses;
@@ -65,6 +70,7 @@ import static org.onosproject.yangutils.datamodel.TraversalType.CHILD;
 import static org.onosproject.yangutils.datamodel.TraversalType.PARENT;
 import static org.onosproject.yangutils.datamodel.TraversalType.ROOT;
 import static org.onosproject.yangutils.datamodel.TraversalType.SIBILING;
+import static org.onosproject.yangutils.datamodel.YangNode.cloneSubTreeForDeviation;
 import static org.onosproject.yangutils.datamodel.YangPathArgType.ABSOLUTE_PATH;
 import static org.onosproject.yangutils.datamodel.YangPathArgType.RELATIVE_PATH;
 import static org.onosproject.yangutils.datamodel.exceptions.ErrorMessages.getErrorMsg;
@@ -75,8 +81,11 @@ import static org.onosproject.yangutils.datamodel.utils.ResolvableStatus.LINKED;
 import static org.onosproject.yangutils.datamodel.utils.ResolvableStatus.RESOLVED;
 import static org.onosproject.yangutils.datamodel.utils.ResolvableStatus.UNDEFINED;
 import static org.onosproject.yangutils.datamodel.utils.ResolvableStatus.UNRESOLVED;
+import static org.onosproject.yangutils.datamodel.utils.YangConstructType.LEAF_DATA;
+import static org.onosproject.yangutils.datamodel.utils.YangConstructType.LEAF_LIST_DATA;
 import static org.onosproject.yangutils.datamodel.utils.YangConstructType.PATH_DATA;
 import static org.onosproject.yangutils.linker.impl.XpathLinkingTypes.AUGMENT_LINKING;
+import static org.onosproject.yangutils.linker.impl.XpathLinkingTypes.DEVIATION_LINKING;
 import static org.onosproject.yangutils.linker.impl.XpathLinkingTypes.LEAF_REF_LINKING;
 import static org.onosproject.yangutils.linker.impl.YangLinkerUtils.detectCollisionForAugmentedNode;
 import static org.onosproject.yangutils.linker.impl.YangLinkerUtils.fillPathPredicates;
@@ -1096,7 +1105,142 @@ public class YangResolutionInfoImpl<T> extends DefaultLocationInfo
                 ex.setFileName(leafRef.getFileName());
                 throw ex;
             }
+        } else if (entityToResolve instanceof YangDeviation) {
+            YangNode targetNode;
+            YangDeviation deviation = (YangDeviation) entityToResolve;
+            List<YangAtomicPath> path = deviation.getTargetNode();
+            YangAtomicPath targetPath = path.get(path.size() - 1);
+            targetNode = xPathLinker.processXpathLinking(path,
+                                                         (YangNode) root, DEVIATION_LINKING);
+            if (targetNode != null) {
+                YangNode clonedNode = cloneDeviatedModuleNode(targetNode, deviation);
+                YangSchemaNode deviationTarget = xPathLinker.parsePath(clonedNode);
+                if (deviation.isDeviateNotSupported()) {
+                    if (deviationTarget.getName().equals(targetPath.getNodeIdentifier().getName())) {
+                        deleteUnsupportedNodeFromTree((YangNode) deviationTarget);
+                    } else {
+                        deleteUnsupportedLeafOrLeafList((YangLeavesHolder) deviationTarget,
+                                                        targetPath.getNodeIdentifier().getName());
+                    }
+                }
+                Resolvable resolvable = (Resolvable) entityToResolve;
+                resolvable.setResolvableStatus(RESOLVED);
+            } else {
+                throw new LinkerException(getErrorMsg(
+                        FAILED_TO_FIND_ANNOTATION, deviation.getName(),
+                        deviation.getLineNumber(), deviation.getCharPosition(),
+                        deviation.getFileName()));
+            }
         }
+    }
+
+    private void deleteUnsupportedLeafOrLeafList(YangLeavesHolder node,
+                                                 String leafName) {
+        List<YangLeaf> leaves = node.getListOfLeaf();
+        if (leaves != null && !leaves.isEmpty()) {
+            for (YangLeaf leaf : leaves) {
+                if (leaf.getName().equals(leafName)) {
+                    node.removeLeaf(leaf);
+                    return;
+                }
+            }
+        }
+
+        List<YangLeafList> leafList = node.getListOfLeafList();
+        if (leafList != null && !leafList.isEmpty()) {
+            for (YangLeafList leaf : leafList) {
+                if (leaf.getName().equals(leafName)) {
+                    node.removeLeafList(leaf);
+                    return;
+                }
+            }
+        }
+    }
+
+    private void deleteUnsupportedNodeFromTree(YangNode node) {
+        // unlink from parent
+        YangNode parentNode = node.getParent();
+        if (parentNode.getChild().equals(node)) {
+            parentNode.setChild(node.getNextSibling());
+        }
+
+        //unlink from siblings
+        YangNode previousSibling = node.getPreviousSibling();
+        YangNode nextSibling = node.getNextSibling();
+        if (nextSibling != null && previousSibling != null) {
+            previousSibling.setNextSibling(nextSibling);
+            nextSibling.setPreviousSibling(previousSibling);
+        } else if (nextSibling != null) {
+            nextSibling.setPreviousSibling(null);
+        } else if (previousSibling != null) {
+            previousSibling.setNextSibling(null);
+        }
+        node.setParent(null);
+        node.setPreviousSibling(null);
+        node.setNextSibling(null);
+        node.setChild(null);
+    }
+
+    private YangNode cloneDeviatedModuleNode(YangNode targetNode, YangDeviation
+            deviation)
+            throws DataModelException {
+
+        // get Root node of target schema
+        while (targetNode.getParent() != null) {
+            targetNode = targetNode.getParent();
+        }
+        YangNode srcNode = targetNode;
+        YangNode dstNode = deviation.getParent();
+
+        if (((YangDeviationHolder) dstNode).isDeviatedNodeCloned()) {
+            // Target Node is already cloned, no need to clone again
+            return dstNode;
+        }
+
+        // clone leaf and leaf-list of root level
+        YangLeavesHolder destLeafHolder = (YangLeavesHolder) dstNode;
+        YangLeavesHolder srcLeafHolder = (YangLeavesHolder) srcNode;
+        if (srcLeafHolder.getListOfLeaf() != null) {
+            for (YangLeaf leaf : srcLeafHolder.getListOfLeaf()) {
+                YangLeaf clonedLeaf;
+                try {
+                    ((CollisionDetector) dstNode)
+                            .detectCollidingChild(leaf.getName(), LEAF_DATA);
+                    clonedLeaf = leaf.cloneForDeviation();
+                    clonedLeaf.setReferredLeaf(leaf);
+                } catch (CloneNotSupportedException | DataModelException e) {
+                    throw new DataModelException(e.getMessage());
+                }
+
+                clonedLeaf.setContainedIn(destLeafHolder);
+                destLeafHolder.addLeaf(clonedLeaf);
+            }
+        }
+        if (srcLeafHolder.getListOfLeafList() != null) {
+            for (YangLeafList leafList : srcLeafHolder.getListOfLeafList()) {
+                YangLeafList clonedLeafList;
+                try {
+                    ((CollisionDetector) destLeafHolder)
+                            .detectCollidingChild(leafList.getName(), LEAF_LIST_DATA);
+                    clonedLeafList = leafList.cloneForDeviation();
+                    clonedLeafList.setReferredSchemaLeafList(leafList);
+                } catch (CloneNotSupportedException | DataModelException e) {
+                    throw new DataModelException(e.getMessage());
+                }
+                clonedLeafList.setContainedIn(destLeafHolder);
+                destLeafHolder.addLeafList(clonedLeafList);
+            }
+        }
+
+        // clone subtree
+        cloneSubTreeForDeviation(srcNode, dstNode);
+
+        /*
+         * Cloning of deviated module is done, set isDeviatedNodeCloned
+         * flag as true.
+         */
+        ((YangDeviationHolder) dstNode).setDeviatedNodeCloned(true);
+        return dstNode;
     }
 
     /**

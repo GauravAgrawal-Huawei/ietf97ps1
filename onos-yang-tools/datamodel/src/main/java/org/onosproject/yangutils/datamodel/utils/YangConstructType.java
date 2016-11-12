@@ -402,7 +402,12 @@ public enum YangConstructType {
     /**
      * Identifies the YANG argument element parsed data.
      */
-    ARGUMENT_DATA;
+    ARGUMENT_DATA,
+
+    /**
+     * Identifies the YANG deviate not supported element parsed data.
+     */
+    DEVIATE_NOT_SUPPORTED;
 
     /**
      * Returns the YANG construct keyword corresponding to enum values.
@@ -567,6 +572,8 @@ public enum YangConstructType {
                 return "app-extended-name";
             case ARGUMENT_DATA:
                 return "argument";
+            case DEVIATE_NOT_SUPPORTED:
+                return "deviate-not-supported-stmt";
             default:
                 return "yang";
         }

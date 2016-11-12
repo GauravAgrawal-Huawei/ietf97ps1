@@ -1,0 +1,23 @@
+module Test {
+    yang-version 1;
+    namespace "test:deviation";
+    prefix test;
+    container ospf {
+        config false;
+        leaf process-id {
+            type "uint16";
+            units "seconds";
+            status current;
+            reference "RFC 6020";
+         }
+    }
+
+    container valid {
+        leaf invalid-interval {
+            type "uint16";
+            units "seconds";
+            status current;
+            reference "RFC 6020";
+         }
+    }
+}

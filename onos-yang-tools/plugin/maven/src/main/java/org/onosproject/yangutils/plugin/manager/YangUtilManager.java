@@ -25,6 +25,7 @@ import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.rtinfo.RuntimeInformation;
+import org.onosproject.yangutils.datamodel.YangDeviationHolder;
 import org.onosproject.yangutils.datamodel.YangNode;
 import org.onosproject.yangutils.datamodel.YangReferenceResolver;
 import org.onosproject.yangutils.datamodel.exceptions.DataModelException;
@@ -380,7 +381,9 @@ public class YangUtilManager extends AbstractMojo {
         sort(yangNodeSortedList);
         for (YangNode node : yangNodeSortedList) {
             if (node.isToTranslate()) {
-                generateJavaCode(node, yangPlugin);
+                if (!((YangDeviationHolder) node).isModuleForDeviation()) {
+                    generateJavaCode(node, yangPlugin);
+                }
             }
         }
     }

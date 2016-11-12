@@ -347,6 +347,17 @@ public abstract class YangLeaf extends DefaultLocationInfo
     }
 
     /**
+     * Returns the cloned leaf.
+     *
+     * @return returns cloned leaf
+     */
+    public YangLeaf cloneForDeviation()
+            throws CloneNotSupportedException {
+        YangLeaf cl = (YangLeaf) super.clone();
+        return cl;
+    }
+
+    /**
      * Returns the type of the parsed data.
      *
      * @return returns LEAF_DATA

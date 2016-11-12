@@ -26,7 +26,9 @@ import static org.onosproject.yangutils.datamodel.TraversalType.CHILD;
 import static org.onosproject.yangutils.datamodel.TraversalType.PARENT;
 import static org.onosproject.yangutils.datamodel.TraversalType.SIBILING;
 import static org.onosproject.yangutils.datamodel.utils.DataModelUtils.cloneListOfLeaf;
+import static org.onosproject.yangutils.datamodel.utils.DataModelUtils.cloneListOfLeafForDeviation;
 import static org.onosproject.yangutils.datamodel.utils.DataModelUtils.cloneListOfLeafList;
+import static org.onosproject.yangutils.datamodel.utils.DataModelUtils.cloneListOfLeafListForDeviation;
 import static org.onosproject.yangutils.datamodel.utils.DataModelUtils.updateClonedLeavesUnionEnumRef;
 
 /**
@@ -425,6 +427,32 @@ public abstract class YangNode
     }
 
     /**
+     * Clones the current node contents and create a new node.
+     *
+     * @return cloned node
+     * @throws CloneNotSupportedException clone is not supported by the referred
+     *                                    node
+     */
+    public YangNode cloneForDeviation()
+            throws CloneNotSupportedException {
+        YangNode clonedNode = (YangNode) super.clone();
+        if (clonedNode instanceof YangLeavesHolder) {
+            try {
+                cloneListOfLeafForDeviation((YangLeavesHolder) clonedNode);
+                cloneListOfLeafListForDeviation((YangLeavesHolder) clonedNode);
+            } catch (DataModelException e) {
+                throw new CloneNotSupportedException(e.getMessage());
+            }
+        }
+
+        clonedNode.setParent(null);
+        clonedNode.setChild(null);
+        clonedNode.setNextSibling(null);
+        clonedNode.setPreviousSibling(null);
+        return clonedNode;
+    }
+
+    /**
      * Clones the subtree from the specified source node to the mentioned target
      * node. The source and target root node cloning is carried out by the
      * caller.
@@ -471,6 +499,108 @@ public abstract class YangNode
                 }
                 if (curTraversal != PARENT) {
                     newNode = nextNodeToClone.clone(yangUses);
+                    detectCollisionWhileCloning(clonedTreeCurNode, newNode,
+                                                curTraversal);
+                }
+
+                if (curTraversal == CHILD) {
+
+                    /*
+                     * add the new node to the cloned tree.
+                     */
+                    clonedTreeCurNode.addChild(newNode);
+
+                    /*
+                     * update the cloned tree's traversal current node as the
+                     * new node.
+                     */
+                    clonedTreeCurNode = newNode;
+                } else if (curTraversal == SIBILING) {
+
+                    clonedTreeCurNode.addNextSibling(newNode);
+                    clonedTreeCurNode = newNode;
+                } else {
+                    if (clonedTreeCurNode instanceof YangLeavesHolder) {
+                        updateClonedLeavesUnionEnumRef((YangLeavesHolder) clonedTreeCurNode);
+                    }
+                    clonedTreeCurNode = clonedTreeCurNode.getParent();
+                }
+
+                if (curTraversal != PARENT && nextNodeToClone.getChild() != null) {
+                    curTraversal = CHILD;
+
+                    /*
+                     * update the traversal's current node.
+                     */
+                    nextNodeToClone = nextNodeToClone.getChild();
+
+                } else if (nextNodeToClone.getNextSibling() != null) {
+
+                    curTraversal = SIBILING;
+
+                    nextNodeToClone = nextNodeToClone.getNextSibling();
+                } else {
+                    curTraversal = PARENT;
+                    nextNodeToClone = nextNodeToClone.getParent();
+                }
+            }
+        } catch (CloneNotSupportedException e) {
+            throw new DataModelException("Failed to clone the tree " +
+                                                 nextNodeToClone.getName() +
+                                                 " in " + nextNodeToClone.getLineNumber() +
+                                                 " at " + nextNodeToClone.getCharPosition() +
+                                                 " in " + nextNodeToClone.getFileName() + "\"");
+        }
+
+    }
+
+
+    /**
+     * Clones the subtree from the specified source node to the mentioned target
+     * node. The source and target root node cloning is carried out by the
+     * caller.
+     *
+     * @param srcRootNode source node for sub tree cloning
+     * @param dstRootNode destination node where the sub tree needs to be cloned
+     * @throws DataModelException data model error
+     */
+    public static void cloneSubTreeForDeviation(YangNode srcRootNode,
+                                                YangNode dstRootNode)
+            throws DataModelException {
+
+        YangNode nextNodeToClone = srcRootNode;
+        TraversalType curTraversal;
+
+        YangNode clonedTreeCurNode = dstRootNode;
+        YangNode newNode = null;
+
+        nextNodeToClone = nextNodeToClone.getChild();
+        if (nextNodeToClone == null) {
+            return;
+        } else {
+            /*
+             * Root level cloning is taken care in the caller.
+             */
+            curTraversal = CHILD;
+        }
+
+        /*
+         * Caller ensures the cloning of the root nodes
+         */
+        try {
+            while (nextNodeToClone != srcRootNode) {
+                if (nextNodeToClone == null) {
+                    throw new DataModelException("Internal error: Cloning " +
+                                                         "failed, source " +
+                                                         "tree null pointer " +
+                                                         "reached " +
+                                                         nextNodeToClone.getName() +
+                                                         " in " + nextNodeToClone.getLineNumber() +
+                                                         " at " + nextNodeToClone.getCharPosition() +
+                                                         " in " + nextNodeToClone.getFileName() + "\"");
+                }
+                if (curTraversal != PARENT) {
+                    newNode = nextNodeToClone.cloneForDeviation();
                     detectCollisionWhileCloning(clonedTreeCurNode, newNode,
                                                 curTraversal);
                 }

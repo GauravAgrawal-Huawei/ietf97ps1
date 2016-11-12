@@ -22,6 +22,7 @@ import org.onosproject.yangutils.datamodel.YangAtomicPath;
 import org.onosproject.yangutils.datamodel.YangAugment;
 import org.onosproject.yangutils.datamodel.YangBase;
 import org.onosproject.yangutils.datamodel.YangCompilerAnnotation;
+import org.onosproject.yangutils.datamodel.YangDeviation;
 import org.onosproject.yangutils.datamodel.YangEntityToResolveInfoImpl;
 import org.onosproject.yangutils.datamodel.YangEnumeration;
 import org.onosproject.yangutils.datamodel.YangIdentityRef;
@@ -58,6 +59,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+
+import static org.onosproject.yangutils.datamodel.ResolvableType.YANG_DEVIATION;
 
 /**
  * Represents utilities for data model tree.
@@ -221,7 +224,11 @@ public final class DataModelUtils {
         } else if (resolutionInfo.getEntityToResolveInfo()
                 .getEntityToResolve() instanceof YangCompilerAnnotation) {
             resolutionNode.addToResolutionList(resolutionInfo,
-                    ResolvableType.YANG_COMPILER_ANNOTATION);
+                                               ResolvableType.YANG_COMPILER_ANNOTATION);
+        } else if (resolutionInfo.getEntityToResolveInfo()
+                .getEntityToResolve() instanceof YangDeviation) {
+            resolutionNode.addToResolutionList(resolutionInfo,
+                                               YANG_DEVIATION);
         }
     }
 
@@ -367,6 +374,31 @@ public final class DataModelUtils {
     }
 
     /**
+     * Adds the list of leaf present under a node to resolution list, after
+     * cloning. Under the cloned node, with cloned leaf, attributes are set
+     * and added to resolution list.
+     *
+     * @throws CloneNotSupportedException clone not supported error
+     * @throws DataModelException         data model error
+     */
+    public static void cloneListOfLeafForDeviation(
+            YangLeavesHolder clonedNode)
+            throws CloneNotSupportedException, DataModelException {
+
+        List<YangLeaf> leaves = clonedNode.getListOfLeaf();
+        if (nonEmpty(leaves)) {
+            List<YangLeaf> clonedLeaves = new LinkedList<>();
+            for (YangLeaf leaf : leaves) {
+                YangLeaf clonedLeaf = leaf.cloneForDeviation();
+                clonedLeaf.setReferredLeaf(leaf);
+                clonedLeaf.setContainedIn(clonedNode);
+                clonedLeaves.add(clonedLeaf);
+            }
+            clonedNode.setListOfLeaf(clonedLeaves);
+        }
+    }
+
+    /**
      * Adds all the unresolved type under leaf/leaf-list to the resolution
      * list, after cloning. This makes the resolution to happen after cloning
      * of the grouping. Adds resolution with cloned node holder under which
@@ -423,6 +455,32 @@ public final class DataModelUtils {
                 clonedLeafList.setReferredSchemaLeafList(leafList);
                 addUnresolvedType(yangUses, clonedLeafList,
                                   (YangNode) clonedNode);
+                clonedLeafList.setContainedIn(clonedNode);
+                clonedList.add(clonedLeafList);
+            }
+            clonedNode.setListOfLeafList(clonedList);
+        }
+    }
+
+    /**
+     * Adds the list of leaf-list present under a node to resolution list,
+     * after cloning. Under the cloned node, with cloned leaf-list,
+     * attributes are set and added to resolution list.
+     *
+     * @param clonedNode cloned holder
+     * @throws CloneNotSupportedException clone not supported error
+     * @throws DataModelException         data model error
+     */
+    public static void cloneListOfLeafListForDeviation(
+            YangLeavesHolder clonedNode)
+            throws CloneNotSupportedException, DataModelException {
+
+        List<YangLeafList> listOfLeafList = clonedNode.getListOfLeafList();
+        if (nonEmpty(listOfLeafList)) {
+            List<YangLeafList> clonedList = new LinkedList<>();
+            for (YangLeafList leafList : listOfLeafList) {
+                YangLeafList clonedLeafList = leafList.cloneForDeviation();
+                clonedLeafList.setReferredSchemaLeafList(leafList);
                 clonedLeafList.setContainedIn(clonedNode);
                 clonedList.add(clonedLeafList);
             }
@@ -807,5 +865,33 @@ public final class DataModelUtils {
         }
         jar.close();
         return nodes;
+    }
+
+    // Validates whether multiple deviation statement's Xpath is referring
+    // to same module
+    public static void validateMultipleDeviationStatement(YangReferenceResolver node) throws
+            DataModelException {
+        List<YangResolutionInfo> deviationList = node.getUnresolvedResolutionList(YANG_DEVIATION);
+        String prefix = null;
+        if (!deviationList.isEmpty()) {
+            YangDeviation firstDeviation = (YangDeviation) deviationList.get(0)
+                    .getEntityToResolveInfo().getEntityToResolve();
+            YangAtomicPath atomic = firstDeviation.getTargetNode().get(0);
+            prefix = atomic.getNodeIdentifier().getPrefix();
+        }
+
+        Iterator<YangResolutionInfo> deviationIterator = deviationList.iterator();
+        while (deviationIterator.hasNext()) {
+            YangDeviation deviation = (YangDeviation) deviationIterator.next()
+                    .getEntityToResolveInfo().getEntityToResolve();
+            List<YangAtomicPath> targetNode = deviation.getTargetNode();
+            YangAtomicPath atomicPath = targetNode.get(0);
+            if (!atomicPath.getNodeIdentifier().getPrefix().equals(prefix)) {
+                throw new DataModelException("YANG FILE ERROR : Deviations " +
+                                                     "of multiple module is" +
+                                                     " currently not " +
+                                                     "supported.");
+            }
+        }
     }
 }

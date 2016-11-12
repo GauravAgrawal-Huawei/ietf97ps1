@@ -293,8 +293,7 @@ public class YangXpathLinker<T> {
      * @param root root node
      * @return linked target node
      */
-    private YangNode parsePath(YangNode root) {
-
+    public YangNode parsePath(YangNode root) {
         YangNode tempNode = root;
         Stack<YangNode> linkerStack = new Stack<>();
         Iterator<YangAtomicPath> pathIterator = absPaths.iterator();
@@ -690,8 +689,30 @@ public class YangXpathLinker<T> {
      * @param curNodeId YANG node identifier
      * @return linked target node
      */
-    private YangNode searchTargetNode(YangNode node, YangNodeIdentifier curNodeId) {
+    private YangNode searchTargetNode(YangNode node, YangNodeIdentifier
+            curNodeId) {
 
+        if (linkingType == XpathLinkingTypes.DEVIATION_LINKING &&
+                node instanceof YangLeavesHolder) {
+            YangLeavesHolder holder = (YangLeavesHolder) node;
+            List<YangLeafList> leavesList = holder.getListOfLeafList();
+            if (leavesList != null && !leavesList.isEmpty()) {
+                for (YangLeafList leafList : leavesList) {
+                    if (leafList.getName().equals(curNodeId.getName())) {
+                        return node;
+                    }
+                }
+            }
+
+            List<YangLeaf> leaves = holder.getListOfLeaf();
+            if (leaves != null && !leaves.isEmpty()) {
+                for (YangLeaf leaf : leaves) {
+                    if (leaf.getName().equals(curNodeId.getName())) {
+                        return node;
+                    }
+                }
+            }
+        }
         if (node != null) {
             node = node.getChild();
         }
@@ -708,6 +729,27 @@ public class YangXpathLinker<T> {
             if (node.getName().equals(curNodeId.getName()) &&
                     !(node instanceof YangUses)) {
                 return node;
+            }
+            if (linkingType == XpathLinkingTypes.DEVIATION_LINKING &&
+                    node instanceof YangLeavesHolder) {
+                YangLeavesHolder holder = (YangLeavesHolder) node;
+                List<YangLeafList> leavesList = holder.getListOfLeafList();
+                if (leavesList != null && !leavesList.isEmpty()) {
+                    for (YangLeafList leafList : leavesList) {
+                        if (leafList.getName().equals(curNodeId.getName())) {
+                            return node;
+                        }
+                    }
+                }
+
+                List<YangLeaf> leaves = holder.getListOfLeaf();
+                if (leaves != null && !leaves.isEmpty()) {
+                    for (YangLeaf leaf : leaves) {
+                        if (leaf.getName().equals(curNodeId.getName())) {
+                            return node;
+                        }
+                    }
+                }
             }
             node = node.getNextSibling();
         }
